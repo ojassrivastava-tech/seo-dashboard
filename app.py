@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 import requests
+import plotly.express as px
 
-# 1. Page Config - Strict Mobile First Layout
+# Page Configuration - Strict Mobile First Layout
 st.set_page_config(
     page_title="SEO Dashboard", 
     layout="centered", 
@@ -14,7 +15,7 @@ st.title("🚀 SEO & Web Performance Dashboard")
 
 excel_file = "seo_speed_report.xlsx"
 
-# ⚡ FAST LOADING FUNCTION (Cache for pre-saved data)
+# FAST LOADING FUNCTION (Cache for pre-saved data)
 @st.cache_data(ttl=60)
 def load_and_clean_data(file_path):
     if not os.path.exists(file_path):
@@ -34,7 +35,7 @@ def load_and_clean_data(file_path):
 df = load_and_clean_data(excel_file)
 
 # ==========================================
-# 🛠️ FIX FOR POINT #3: LIVE CUSTOM URL SCANNER
+# 🛠️ LIVE CUSTOM URL SCANNER (FIXED TYPO)
 # ==========================================
 st.markdown("---")
 st.markdown("### 🔍 Live Website SEO Checker")
@@ -49,37 +50,40 @@ if st.button("⚡ Run Live Audit"):
             
         with st.spinner("Fetching live data from Google API... Please wait..."):
             try:
-                # PageSpeed Insights Public Endpoint API Call
                 api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={user_url}&category=performance"
                 response = requests.get(api_url, timeout=30)
                 
-                if response.status_index == 200 or "lighthouseResult" in response.json():
+                # FIXED: Changed status_index to status_code
+                if response.status_code == 200:
                     data = response.json()
-                    lighthouse = data["lighthouseResult"]
-                    
-                    # Extract Metrics
-                    perf_score = int(lighthouse["categories"]["performance"]["score"] * 100)
-                    fcp = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
-                    tti = lighthouse["audits"]["interactive"]["displayValue"]
-                    
-                    # Display Results in Gorgeous Mobile Cards
-                    st.success(f"Analysis completed for: {user_url}")
-                    
-                    st.metric(label="🎯 Live Performance Score", value=f"{perf_score}%")
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        st.metric(label="⏱️ Live FCP", value=f"{fcp}")
-                    with c2:
-                        st.metric(label="⚡ Live TTI", value=f"{tti}")
+                    if "lighthouseResult" in data:
+                        lighthouse = data["lighthouseResult"]
+                        
+                        # Extract Metrics
+                        perf_score = int(lighthouse["categories"]["performance"]["score"] * 100)
+                        fcp = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
+                        tti = lighthouse["audits"]["interactive"]["displayValue"]
+                        
+                        # Display Results in Gorgeous Mobile Cards
+                        st.success(f"Analysis completed for: {user_url}")
+                        
+                        st.metric(label="🎯 Live Performance Score", value=f"{perf_score}%")
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.metric(label="⏱️ Live FCP", value=f"{fcp}")
+                        with c2:
+                            st.metric(label="⚡ Live TTI", value=f"{tti}")
+                    else:
+                        st.error("Lighthouse data not found in response. Try another URL.")
                 else:
-                    st.error("Could not fetch data for this URL. Please check the spelling and try again.")
+                    st.error(f"Google API returned error code: {response.status_code}")
             except Exception as e:
-                st.error("Connection timeout or API error. Please try again after some time.")
+                st.error("Connection timeout. Google API is taking too long or URL is invalid.")
     else:
         st.warning("Please enter a valid URL first!")
 
 # ==========================================
-# 📊 PRE-SAVED DATA SECTION (Rohan Sir Feedback #1, #2, #4)
+# 📊 PRE-SAVED DATA SECTION
 # ==========================================
 st.markdown("---")
 st.markdown("### 🗃️ Monitored Sites Matrix (Historical Report)")
@@ -104,13 +108,24 @@ if df is not None:
         display_df = filtered_df[available_cols].copy()
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 Chart Section
+    # 📈 FIX FOR POINT #6: Premium Plotly Visual Graph
     st.markdown("### 📈 Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
     selected_metric = st.selectbox("Select metric for graph:", metrics_to_chart)
     
-    chart_data = filtered_df.pivot_table(index='URL', values=selected_metric, aggfunc='mean')
-    st.bar_chart(chart_data, use_container_width=True)
+    chart_data = filtered_df.pivot_table(index='URL', values=selected_metric, aggfunc='mean').reset_index()
+    
+    # Building beautiful plotly bar chart
+    fig = px.bar(
+        chart_data, 
+        x='URL', 
+        y=selected_metric, 
+        color=selected_metric,
+        color_continuous_scale=px.colors.sequential.Viridis,
+        template="plotly_dark"
+    )
+    fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), height=350)
+    st.plotly_chart(fig, use_container_width=True)
 
 else:
     st.warning(f"Data file '{excel_file}' not found.")
