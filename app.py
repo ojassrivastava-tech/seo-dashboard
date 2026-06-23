@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 st.title("🚀 Google PageSpeed Insights Audit Portal")
-st.caption("Enterprise Web Optimization Engine - Ditto Google Pro Specs")
+st.caption("Enterprise Web Optimization & Core Web Vitals Analytics Engine")
 
 excel_file = "seo_speed_report.xlsx"
 
@@ -71,7 +71,7 @@ st.write("Enter any URL below to perform a standard Google Lighthouse audit suit
 
 user_url = st.text_input("Enter Website URL", placeholder="https://example.com")
 
-# 📱/💻 GOOGLE DITTO UPGRADE 1: Mobile vs Desktop Toggle Switch
+# Mobile vs Desktop Strategy Toggle
 strategy = st.radio("Select Target Device Environment:", ["Mobile", "Desktop"], horizontal=True)
 
 # Dedicated Personal Google API Key
@@ -172,14 +172,13 @@ if st.button("⚡ Run Full Core Audit"):
                         fig_live.update_yaxes(fixedrange=True)
                         st.plotly_chart(fig_live, use_container_width=True, config={'displayModeBar': False})
                         
-                        # 🛠️ GOOGLE DITTO UPGRADE 2: Opportunities & Diagnostics (Real Engine Suggestions)
+                        # 🛠️ Opportunities & Diagnostics (Real Engine Suggestions)
                         st.markdown("---")
                         st.markdown("### 🛠️ Optimization Opportunities & Diagnostics")
                         st.write("Fix these technical issues to instantly uplift this score:")
                         
                         opp_count = 0
                         for audit_name, audit_data in audits.items():
-                            # Filter audits that have actionable savings guidelines from Google
                             if 'details' in audit_data and audit_data['details'].get('type') == 'opportunity':
                                 title = audit_data.get('title')
                                 description = audit_data.get('description', '')
