@@ -7,7 +7,7 @@ import plotly.express as px
 # 1. Page Configuration - Strict Mobile Responsive Layout
 st.set_page_config(
     page_title="SEO Dashboard", 
-    layout="centered", # Centered view keeps the UI clean and perfect for mobile screens
+    layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
@@ -15,7 +15,7 @@ st.title("🚀 SEO & Web Performance Dashboard")
 
 excel_file = "seo_speed_report.xlsx"
 
-# ⚡ FAST LOADING FUNCTION (Cache memory prevents lag on mobile devices)
+# ⚡ FAST LOADING FUNCTION
 @st.cache_data(ttl=60)
 def load_and_clean_data(file_path):
     if not os.path.exists(file_path):
@@ -36,7 +36,7 @@ def load_and_clean_data(file_path):
 df = load_and_clean_data(excel_file)
 
 # ==========================================
-# 🛠️ LIVE CUSTOM URL SCANNER (with Premium Horizontal Live Chart)
+# 🛠️ LIVE CUSTOM URL SCANNER
 # ==========================================
 st.markdown("---")
 st.markdown("### 🔍 Live Website SEO Checker")
@@ -44,7 +44,6 @@ st.write("Enter any custom URL below to test its live performance via Google Pag
 
 user_url = st.text_input("Enter Website URL (e.g., https://example.com)", placeholder="https://...")
 
-# Personal API Key integrated to bypass 429 Busy errors
 API_KEY = "AIzaSyCxic-4hCaYk4rNUaLD8yExJKOlyqoy1WE"
 
 if st.button("⚡ Run Live Audit"):
@@ -62,17 +61,13 @@ if st.button("⚡ Run Live Audit"):
                     if "lighthouseResult" in data:
                         lighthouse = data["lighthouseResult"]
                         
-                        # Extract Metrics
                         perf_score = int(lighthouse["categories"]["performance"]["score"] * 100)
-                        
-                        # Extracted numeric values for seamless graph rendering
                         fcp_val = float(lighthouse["audits"]["first-contentful-paint"]["numericValue"]) / 1000.0
                         tti_val = float(lighthouse["audits"]["interactive"]["numericValue"]) / 1000.0
                         
                         fcp_display = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
                         tti_display = lighthouse["audits"]["interactive"]["displayValue"]
                         
-                        # Display Results in Gorgeous Mobile Cards
                         st.success(f"Analysis completed for: {user_url}")
                         st.metric(label="🎯 Live Performance Score", value=f"{perf_score}%")
                         
@@ -82,7 +77,6 @@ if st.button("⚡ Run Live Audit"):
                         with c2:
                             st.metric(label="⚡ Live TTI", value=f"{tti_display}")
                         
-                        # 📊 PREMIUM HORIZONTAL LIVE CHART (No Scale Issues)
                         st.markdown("#### 📊 Live Metric Analysis Chart")
                         
                         live_data = pd.DataFrame({
@@ -97,11 +91,11 @@ if st.button("⚡ Run Live Audit"):
                             y='Metric Name',
                             color='Type',
                             text='Value',
-                            orientation='h',  # Horizontal bars keep labels crisp on small screens
+                            orientation='h',
                             template='plotly_dark',
                             color_discrete_map={
-                                'Score (Higher is Better)': '#10B981',  # Green
-                                'Speed (Lower is Better)': '#3B82F6'   # Blue
+                                'Score (Higher is Better)': '#10B981',
+                                'Speed (Lower is Better)': '#3B82F6'
                             }
                         )
                         
@@ -115,7 +109,6 @@ if st.button("⚡ Run Live Audit"):
                             yaxis_title=None
                         )
                         fig_live.update_xaxes(matches=None, showgrid=False)
-                        
                         st.plotly_chart(fig_live, use_container_width=True)
                         
                     else:
@@ -155,7 +148,7 @@ if df is not None and not df.empty:
         display_df = filtered_df[available_cols].copy()
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 Pre-saved data comparison graph
+    # 📈 FIX FOR HISTORICAL GRAPH: Horizontal Mobile Optimized Layout
     st.markdown("### 📈 Historical Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
     selected_metric = st.selectbox("Select metric for historical graph:", metrics_to_chart)
@@ -163,15 +156,26 @@ if df is not None and not df.empty:
     chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean().dropna()
     
     if not chart_data.empty:
+        # Changed orientation to 'h' (Horizontal) for proper mobile formatting
         fig = px.bar(
             chart_data, 
-            x='URL', 
-            y=selected_metric, 
+            x=selected_metric, 
+            y='URL', 
             color=selected_metric,
+            text=selected_metric,
+            orientation='h',
             color_continuous_scale=px.colors.sequential.Viridis,
             template="plotly_dark"
         )
-        fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=320, xaxis_title=None)
+        # Formatting for mobile: removed side legend to give graph maximum width
+        fig.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
+        fig.update_layout(
+            margin=dict(l=10, r=40, t=10, b=10), 
+            height=300, 
+            coloraxis_showscale=False, # Side color legend bar ko chupa diya space bachane ke liye
+            xaxis_title=selected_metric,
+            yaxis_title=None
+        )
         st.plotly_chart(fig, use_container_width=True)
 
 else:
