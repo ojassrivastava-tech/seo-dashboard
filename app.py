@@ -22,9 +22,7 @@ def load_and_clean_data(file_path):
         return None
     try:
         df = pd.read_excel(file_path)
-        # Drop rows where URL is completely empty
         df = df.dropna(subset=['URL'])
-        
         for col in ['First Contentful Paint (FCP)', 'Time to Interactive (TTI)']:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True)
@@ -38,7 +36,7 @@ def load_and_clean_data(file_path):
 df = load_and_clean_data(excel_file)
 
 # ==========================================
-# 🛠️ LIVE CUSTOM URL SCANNER
+# 🛠️ LIVE CUSTOM URL SCANNER (WITH LIVE GRAPH)
 # ==========================================
 st.markdown("---")
 st.markdown("### 🔍 Live Website SEO Checker")
@@ -63,17 +61,45 @@ if st.button("⚡ Run Live Audit"):
                     if "lighthouseResult" in data:
                         lighthouse = data["lighthouseResult"]
                         
+                        # 1. Extract Metrics
                         perf_score = int(lighthouse["categories"]["performance"]["score"] * 100)
-                        fcp = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
-                        tti = lighthouse["audits"]["interactive"]["displayValue"]
                         
+                        # Clean numerical extraction for live graph
+                        fcp_val = float(lighthouse["audits"]["first-contentful-paint"]["numericValue"]) / 1000.0  # seconds mein convert kiya
+                        tti_val = float(lighthouse["audits"]["interactive"]["numericValue"]) / 1000.0  # seconds mein convert kiya
+                        
+                        fcp_display = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
+                        tti_display = lighthouse["audits"]["interactive"]["displayValue"]
+                        
+                        # 2. Display Results in Gorgeous Mobile Cards
                         st.success(f"Analysis completed for: {user_url}")
                         st.metric(label="🎯 Live Performance Score", value=f"{perf_score}%")
                         c1, c2 = st.columns(2)
                         with c1:
-                            st.metric(label="⏱️ Live FCP", value=f"{fcp}")
+                            st.metric(label="⏱️ Live FCP", value=f"{fcp_display}")
                         with c2:
-                            st.metric(label="⚡ Live TTI", value=f"{tti}")
+                            st.metric(label="⚡ Live TTI", value=f"{tti_display}")
+                        
+                        # 3. FIX: Create LIVE GRAPH for just this URL (Rohan Sir Request)
+                        st.markdown("#### 📊 Live Metric Analysis Chart")
+                        live_data = pd.DataFrame({
+                            'Metric': ['Performance Score (%)', 'FCP (seconds)', 'TTI (seconds)'],
+                            'Value': [perf_score, fcp_val, tti_val]
+                        })
+                        
+                        fig_live = px.bar(
+                            live_data,
+                            x='Metric',
+                            y='Value',
+                            color='Metric',
+                            text='Value',
+                            template='plotly_dark',
+                            color_discrete_sequence=px.colors.qualitative.Pastel
+                        )
+                        fig_live.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+                        fig_live.update_layout(height=300, showlegend=False, margin=dict(l=10, r=10, t=10, b=10))
+                        st.plotly_chart(fig_live, use_container_width=True)
+                        
                     else:
                         st.error("Lighthouse data not found in response. Try another URL.")
                 elif response.status_code == 429:
@@ -111,16 +137,12 @@ if df is not None and not df.empty:
         display_df = filtered_df[available_cols].copy()
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 FIX: Safe & Bulletproof Plotly Graph
-    st.markdown("### 📈 Metric Comparison Graph")
+    # 📈 Pre-saved data comparison graph
+    st.markdown("### 📈 Historical Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
-    selected_metric = st.selectbox("Select metric for graph:", metrics_to_chart)
+    selected_metric = st.selectbox("Select metric for historical graph:", metrics_to_chart)
     
-    # Simple grouping that never fails
-    chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean()
-    
-    # Cleaning empty data points before plotting
-    chart_data = chart_data.dropna()
+    chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean().dropna()
     
     if not chart_data.empty:
         fig = px.bar(
@@ -128,18 +150,11 @@ if df is not None and not df.empty:
             x='URL', 
             y=selected_metric, 
             color=selected_metric,
-            color_continuous_scale=px.colors.sequential.Plotly3, # Premium neon tone colors
+            color_continuous_scale=px.colors.sequential.Viridis,
             template="plotly_dark"
         )
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), 
-            height=320,
-            xaxis_title=None,
-            yaxis_title=selected_metric
-        )
+        fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=320, xaxis_title=None)
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Not enough numeric data available to plot a graph for the selected option.")
 
 else:
     st.warning(f"Data file '{excel_file}' not found or empty.")
