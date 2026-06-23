@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import requests
 import plotly.express as px
+from datetime import datetime
 
 # 1. Page Configuration - Strict Mobile Responsive Layout
 st.set_page_config(
@@ -34,6 +35,17 @@ def load_and_clean_data(file_path):
         return None
 
 df = load_and_clean_data(excel_file)
+
+# Helper function to convert live data to downloadable CSV format
+def convert_df(url, score, fcp, tti):
+    report_data = pd.DataFrame([{
+        'Audit Date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'URL': url,
+        'Performance Score (%)': f"{score}%",
+        'First Contentful Paint (FCP)': fcp,
+        'Time to Interactive (TTI)': tti
+    }])
+    return report_data.to_csv(index=False).encode('utf-8')
 
 # ==========================================
 # 🛠️ LIVE CUSTOM URL SCANNER
@@ -77,9 +89,18 @@ if st.button("⚡ Run Live Audit"):
                         with c2:
                             st.metric(label="⚡ Live TTI", value=f"{tti_display}")
                         
+                        # ✨ NECESSARY FEATURE: Download Button For Mobile/Desktop Client Report
+                        csv_data = convert_df(user_url, perf_score, fcp_display, tti_display)
+                        st.download_button(
+                            label="📥 Download Audit Report (CSV)",
+                            data=csv_data,
+                            file_name=f"seo_report_{user_url.replace('https://', '').replace('/', '_')}.csv",
+                            mime='text/csv',
+                            use_container_width=True # Ensures full width comfy finger touch on mobile
+                        )
+                        
                         st.markdown("#### 📊 Live Metric Analysis Chart")
                         
-                        # Shortened label names so they never get clipped on mobile
                         live_data = pd.DataFrame({
                             'Metric': ['Score (%)', 'FCP (s)', 'TTI (s)'],
                             'Value': [perf_score, fcp_val, tti_val],
@@ -103,8 +124,8 @@ if st.button("⚡ Run Live Audit"):
                         fig_live.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
                         fig_live.update_layout(
                             height=220, 
-                            showlegend=False, # Removed legend to save intense horizontal space
-                            margin=dict(l=70, r=40, t=10, b=10), # Extra left padding to avoid text cuts
+                            showlegend=False, 
+                            margin=dict(l=70, r=40, t=10, b=10), 
                             xaxis_title=None,
                             yaxis_title=None,
                             dragmode=False
@@ -159,7 +180,6 @@ if df is not None and not df.empty:
     chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean().dropna()
     
     if not chart_data.empty:
-        # Clean clean URL display name for graph axis
         chart_data['Clean_URL'] = chart_data['URL'].str.replace('https://www.', '').str.replace('https://', '').str.replace('http://', '')
         
         fig = px.bar(
@@ -174,7 +194,7 @@ if df is not None and not df.empty:
         )
         fig.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
         fig.update_layout(
-            margin=dict(l=110, r=40, t=10, b=10), # Ample padding for clear domain names
+            margin=dict(l=110, r=40, t=10, b=10), 
             height=280, 
             coloraxis_showscale=False, 
             xaxis_title=selected_metric,
