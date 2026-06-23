@@ -79,8 +79,9 @@ if st.button("⚡ Run Live Audit"):
                         
                         st.markdown("#### 📊 Live Metric Analysis Chart")
                         
+                        # Shortened label names so they never get clipped on mobile
                         live_data = pd.DataFrame({
-                            'Metric Name': ['Performance Score (%)', 'First Contentful Paint (s)', 'Time to Interactive (s)'],
+                            'Metric': ['Score (%)', 'FCP (s)', 'TTI (s)'],
                             'Value': [perf_score, fcp_val, tti_val],
                             'Type': ['Score (Higher is Better)', 'Speed (Lower is Better)', 'Speed (Lower is Better)']
                         })
@@ -88,7 +89,7 @@ if st.button("⚡ Run Live Audit"):
                         fig_live = px.bar(
                             live_data,
                             x='Value',
-                            y='Metric Name',
+                            y='Metric',
                             color='Type',
                             text='Value',
                             orientation='h',
@@ -101,17 +102,15 @@ if st.button("⚡ Run Live Audit"):
                         
                         fig_live.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
                         fig_live.update_layout(
-                            height=250, 
-                            showlegend=True, 
-                            legend_title=None,
-                            margin=dict(l=10, r=40, t=10, b=10),
+                            height=220, 
+                            showlegend=False, # Removed legend to save intense horizontal space
+                            margin=dict(l=70, r=40, t=10, b=10), # Extra left padding to avoid text cuts
                             xaxis_title=None,
                             yaxis_title=None,
-                            dragmode=False # LOCK 1: Zooming dragging disabled
+                            dragmode=False
                         )
-                        # LOCK 2: Fixed axis scale to prevent sizing changes
                         fig_live.update_xaxes(matches=None, showgrid=False, fixedrange=True)
-                        fig_live.update_yaxes(fixedrange=True)
+                        fig_live.update_yaxes(fixedrange=True, tickfont=dict(size=12))
                         
                         st.plotly_chart(fig_live, use_container_width=True, config={'displayModeBar': False})
                         
@@ -160,10 +159,13 @@ if df is not None and not df.empty:
     chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean().dropna()
     
     if not chart_data.empty:
+        # Clean clean URL display name for graph axis
+        chart_data['Clean_URL'] = chart_data['URL'].str.replace('https://www.', '').str.replace('https://', '').str.replace('http://', '')
+        
         fig = px.bar(
             chart_data, 
             x=selected_metric, 
-            y='URL', 
+            y='Clean_URL', 
             color=selected_metric,
             text=selected_metric,
             orientation='h',
@@ -172,16 +174,15 @@ if df is not None and not df.empty:
         )
         fig.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
         fig.update_layout(
-            margin=dict(l=10, r=40, t=10, b=10), 
-            height=300, 
+            margin=dict(l=110, r=40, t=10, b=10), # Ample padding for clear domain names
+            height=280, 
             coloraxis_showscale=False, 
             xaxis_title=selected_metric,
             yaxis_title=None,
-            dragmode=False # LOCK 1: Zooming dragging disabled for historical chart
+            dragmode=False
         )
-        # LOCK 2: Fixed axis scale for historical chart
         fig.update_xaxes(fixedrange=True)
-        fig.update_yaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True, tickfont=dict(size=11))
         
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
