@@ -1,262 +1,219 @@
 import streamlit as st
-import pandas as pd
-import os
 import requests
-import plotly.express as px
-from datetime import datetime
+import pandas as pd
+import plotly.graph_objects as go
 
-# 1. Page Configuration - Strict Mobile Responsive Layout
-st.set_page_config(
-    page_title="SEO & Web Audit Portal", 
-    layout="centered", 
-    initial_sidebar_state="collapsed"
-)
+# Page Configuration & Styling for Mobile Responsiveness
+st.set_page_config(page_title="Enterprise SEO & Performance Suite", layout="wide")
 
-st.title("🚀 Google PageSpeed Insights Audit Portal")
-st.caption("Enterprise Web Optimization & Core Web Vitals Analytics Engine")
-
-excel_file = "seo_speed_report.xlsx"
-
-# ⚡ FAST LOADING FUNCTION FOR HISTORICAL DATA
-@st.cache_data(ttl=60)
-def load_and_clean_data(file_path):
-    if not os.path.exists(file_path):
-        return None
-    try:
-        df = pd.read_excel(file_path)
-        df = df.dropna(subset=['URL'])
-        for col in ['First Contentful Paint (FCP)', 'Time to Interactive (TTI)']:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True)
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-        if 'Performance Score (%)' in df.columns:
-            df['Performance Score (%)'] = pd.to_numeric(df['Performance Score (%)'], errors='coerce')
-        return df
-    except:
-        return None
-
-df = load_and_clean_data(excel_file)
-
-# Helper function for Traffic Light Color Coding (PageSpeed Rules)
-def get_status_indicator(score):
-    if score >= 90:
-        return "🟢 Good", "green"
-    elif score >= 50:
-        return "🟠 Needs Improvement", "orange"
-    else:
-        return "🔴 Poor", "red"
-
-# Helper function to convert dynamic multi-metric data to downloadable CSV
-def convert_advanced_df(url, strategy, perf, seo, access, best_prac, fcp, tti, cls):
-    report_data = pd.DataFrame([{
-        'Audit Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'Target URL': url,
-        'Device Strategy': strategy.upper(),
-        'Performance Score': f"{perf}%",
-        'SEO Score': f"{seo}%",
-        'Accessibility Score': f"{access}%",
-        'Best Practices Score': f"{best_prac}%",
-        'First Contentful Paint (FCP)': fcp,
-        'Time to Interactive (TTI)': tti,
-        'Cumulative Layout Shift (CLS)': cls
-    }])
-    return report_data.to_csv(index=False).encode('utf-8')
-
-# ==========================================
-# 🔍 GOOGLE ENTERPRISE LIVE URL AUDIT 
-# ==========================================
-st.markdown("---")
-st.markdown("### 🌐 Real-Time Full Website Audit")
-st.write("Enter any URL below to perform a standard Google Lighthouse audit suite:")
-
-user_url = st.text_input("Enter Website URL", placeholder="https://example.com")
-
-# Mobile vs Desktop Strategy Toggle
-strategy = st.radio("Select Target Device Environment:", ["Mobile", "Desktop"], horizontal=True)
-
-# Dedicated Personal Google API Key
-API_KEY = "AIzaSyCxic-4hCaYk4rNUaLD8yExJKOlyqoy1WE"
-
-if st.button("⚡ Run Full Core Audit"):
-    if user_url:
-        if not user_url.startswith("http://") and not user_url.startswith("https://"):
-            user_url = "https://" + user_url
-            
-        with st.spinner(f"Connecting to Google Servers... Running full {strategy} analysis..."):
-            try:
-                # Dynamic strategy injection (mobile/desktop) inside official Google API request
-                api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={user_url}&category=performance&category=seo&category=accessibility&category=best-practices&strategy={strategy.lower()}&key={API_KEY}"
-                response = requests.get(api_url, timeout=60)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if "lighthouseResult" in data:
-                        lighthouse = data["lighthouseResult"]
-                        cats = lighthouse["categories"]
-                        audits = lighthouse["audits"]
-                        
-                        # Extracting Google Core Pillars Scores
-                        perf_score = int(cats["performance"]["score"] * 100)
-                        seo_score = int(cats["seo"]["score"] * 100)
-                        access_score = int(cats["accessibility"]["score"] * 100)
-                        best_prac_score = int(cats["best-practices"]["score"] * 100)
-                        
-                        # Extracting Speed Performance Metrics
-                        fcp_disp = audits["first-contentful-paint"]["displayValue"]
-                        tti_disp = audits["interactive"]["displayValue"]
-                        cls_val = float(audits["cumulative-layout-shift"]["numericValue"])
-                        
-                        st.success(f"Full {strategy} Audit Completed Successfully!")
-                        
-                        # 📊 GOOGLE PAGESPEED DISPLAY (With Status Badges)
-                        st.markdown(f"#### 🎯 Core Optimization Scores ({strategy})")
-                        
-                        p_label, p_color = get_status_indicator(perf_score)
-                        s_label, s_color = get_status_indicator(seo_score)
-                        a_label, a_color = get_status_indicator(access_score)
-                        b_label, b_color = get_status_indicator(best_prac_score)
-                        
-                        m1, m2 = st.columns(2)
-                        with m1:
-                            st.metric(label="📈 Performance Score", value=f"{perf_score}%", delta=p_label, delta_color="normal")
-                            st.metric(label="Accessibility Score", value=f"{access_score}%", delta=a_label, delta_color="normal")
-                        with m2:
-                            st.metric(label="🔍 SEO Score", value=f"{seo_score}%", delta=s_label, delta_color="normal")
-                            st.metric(label="🛡️ Best Practices Score", value=f"{best_prac_score}%", delta=b_label, delta_color="normal")
-                            
-                        # ⏱️ Speed Pillars
-                        st.markdown("#### ⏱️ User Experience & Core Web Vitals")
-                        s1, s2, s3 = st.columns(3)
-                        with s1:
-                            st.metric(label="⏱️ FCP", value=fcp_disp)
-                        with s2:
-                            st.metric(label="⚡ TTI", value=tti_disp)
-                        with s3:
-                            st.metric(label="📉 CLS", value=f"{cls_val:.2f}")
-
-                        # 📥 Report Download Button (CSV Format)
-                        csv_data = convert_advanced_df(user_url, strategy, perf_score, seo_score, access_score, best_prac_score, fcp_disp, tti_disp, cls_val)
-                        st.download_button(
-                            label="📥 Download Full Executive Report (CSV)",
-                            data=csv_data,
-                            file_name=f"pagespeed_{strategy.lower()}_audit_{user_url.replace('https://', '').replace('/', '_')}.csv",
-                            mime='text/csv',
-                            use_container_width=True
-                        )
-                        
-                        # 📈 DYNAMIC HORIZONTAL GRAPH BREAKDOWN (MOBILE STABLE)
-                        st.markdown("#### 📊 Metric Analysis Chart")
-                        chart_df = pd.DataFrame({
-                            'Metric Category': ['Performance', 'SEO', 'Accessibility', 'Best Practices'],
-                            'Score (%)': [perf_score, seo_score, access_score, best_prac_score]
-                        })
-                        
-                        fig_live = px.bar(
-                            chart_df,
-                            x='Score (%)',
-                            y='Metric Category',
-                            color='Score (%)',
-                            text='Score (%)',
-                            orientation='h',
-                            template='plotly_dark',
-                            color_continuous_scale=px.colors.sequential.Plotly3
-                        )
-                        fig_live.update_traces(texttemplate=' %{text}%', textposition='outside')
-                        fig_live.update_layout(
-                            height=240, 
-                            coloraxis_showscale=False,
-                            margin=dict(l=100, r=40, t=10, b=10),
-                            xaxis_title=None, yaxis_title=None, dragmode=False
-                        )
-                        fig_live.update_xaxes(fixedrange=True, range=[0, 115], showgrid=False)
-                        fig_live.update_yaxes(fixedrange=True)
-                        st.plotly_chart(fig_live, use_container_width=True, config={'displayModeBar': False})
-                        
-                        # 🛠️ Opportunities & Diagnostics (Real Engine Suggestions)
-                        st.markdown("---")
-                        st.markdown("### 🛠️ Optimization Opportunities & Diagnostics")
-                        st.write("Fix these technical issues to instantly uplift this score:")
-                        
-                        opp_count = 0
-                        for audit_name, audit_data in audits.items():
-                            if 'details' in audit_data and audit_data['details'].get('type') == 'opportunity':
-                                title = audit_data.get('title')
-                                description = audit_data.get('description', '')
-                                overall_savings = audit_data['details'].get('overallSavingsMs', 0)
-                                
-                                if overall_savings > 0:
-                                    opp_count += 1
-                                    savings_sec = overall_savings / 1000.0
-                                    with st.expander(f"⚠️ {title} (Potential Savings: {savings_sec:.2f}s)"):
-                                        st.write(description)
-                        
-                        if opp_count == 0:
-                            st.success("🎉 Excellent! Google found no major optimization layout opportunities for this strategy.")
-                        
-                    else:
-                        st.error("Google Lighthouse structure parsing failed. Please try again.")
-                else:
-                    st.error(f"Google Engine API Error. (Status Code: {response.status_code})")
-            except Exception as e:
-                st.error("Audit Timeout. Google servers took too long to analyze this website.")
-    else:
-        st.warning("Please enter a valid website URL first!")
-
-# ==========================================
-# 📊 PRE-SAVED HISTORICAL REPORTS SECTION
-# ==========================================
-st.markdown("---")
-st.markdown("### 🗃️ Monitored Sites Matrix (Historical Report)")
-
-if df is not None and not df.empty:
-    all_sites = ["All Websites"] + list(df['URL'].dropna().unique())
-    selected_site = st.selectbox("Choose a pre-saved site to inspect:", all_sites)
+st.markdown("""
+    <style>
+    /* Global Mobile Adjustments */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            padding-top: 1rem !important;
+        }
+        h1 { font-size: 1.8rem !important; text-align: center; }
+        h2 { font-size: 1.4rem !important; }
+        h3 { font-size: 1.1rem !important; }
+        div[data-testid="stMetricValue"] { font-size: 1.5rem !important; }
+    }
     
-    filtered_df = df if selected_site == "All Websites" else df[df['URL'] == selected_site]
+    /* Status Badges Styling */
+    .badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+        color: white;
+        display: inline-block;
+        text-align: center;
+        margin-top: 5px;
+    }
+    .good { background-color: #0cce6b; }
+    .needs-improvement { background-color: #ffa400; }
+    .poor { background-color: #ff4e42; }
+    </style>
+""", unsafe_with_html=True)
 
-    if selected_site != "All Websites" and len(filtered_df) > 0:
-        row = filtered_df.iloc[0]
-        st.metric(label="🎯 Performance Score", value=f"{int(row['Performance Score (%)'])}%")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(label="⏱️ FCP Speed", value=f"{row['First Contentful Paint (FCP)']} s")
-        with col2:
-            st.metric(label="⚡ TTI Speed", value=f"{row['Time to Interactive (TTI)']} s")
-    else:
-        expected_cols = ['URL', 'Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)']
-        available_cols = [col for col in expected_cols if col in df.columns]
-        display_df = filtered_df[available_cols].copy()
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-    
-    # Historical Graph
-    st.markdown("### 📈 Historical Metric Comparison Graph")
-    metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
-    selected_metric = st.selectbox("Select metric for historical graph:", metrics_to_chart)
-    
-    chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean().dropna()
-    
-    if not chart_data.empty:
-        chart_data['Clean_URL'] = chart_data['URL'].str.replace('https://www.', '').str.replace('https://', '').str.replace('http://', '')
-        fig = px.bar(
-            chart_data, 
-            x=selected_metric, 
-            y='Clean_URL', 
-            color=selected_metric,
-            text=selected_metric,
-            orientation='h',
-            color_continuous_scale=px.colors.sequential.Viridis,
-            template="plotly_dark"
-        )
-        fig.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
-        fig.update_layout(
-            margin=dict(l=110, r=40, t=10, b=10), 
-            height=280, coloraxis_showscale=False, 
-            xaxis_title=selected_metric, yaxis_title=None, dragmode=False
-        )
-        fig.update_xaxes(fixedrange=True)
-        fig.update_yaxes(fixedrange=True, tickfont=dict(size=11))
+st.title("🚀 Enterprise Performance & SEO Suite")
+st.caption("Compare your website directly against competitors or run standard single audits.")
+
+# --- API HELPER FUNCTION ---
+def fetch_psi_data(url, strategy, api_key=None):
+    api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={url}&strategy={strategy}"
+    for category in ["performance", "seo", "accessibility", "best-practices"]:
+        api_url += f"&category={category}"
+    if api_key:
+        api_url += f"&key={api_key}"
         
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    try:
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: Status {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
+def extract_metrics(json_data):
+    if "error" in json_data:
+        return None
+    
+    categories = json_data.get("lighthouseResult", {}).get("categories", {})
+    audits = json_data.get("lighthouseResult", {}).get("audits", {})
+    
+    # Extract Scores (0-100 format)
+    scores = {
+        "Performance": int((categories.get("performance", {}).get("score", 0)) * 100),
+        "SEO": int((categories.get("seo", {}).get("score", 0)) * 100),
+        "Accessibility": int((categories.get("accessibility", {}).get("score", 0)) * 100),
+        "Best Practices": int((categories.get("best-practices", {}).get("score", 0)) * 100)
+    }
+    
+    # Extract Web Vitals & Speeds
+    fcp = audits.get("first-contentful-paint", {}).get("displayValue", "N/A")
+    lcp = audits.get("largest-contentful-paint", {}).get("displayValue", "N/A")
+    cls = audits.get("cumulative-layout-shift", {}).get("displayValue", "N/A")
+    tbt = audits.get("total-blocking-time", {}).get("displayValue", "N/A")
+    speed_index = audits.get("speed-index", {}).get("displayValue", "N/A")
+    
+    # Extract Opportunities
+    opps = []
+    for audit_name, audit_data in audits.items():
+        if audit_data.get("details", {}).get("type") == "opportunity":
+            title = audit_data.get("title")
+            description = audit_data.get("description")
+            wasted_ms = audit_data.get("details", {}).get("overallSavingsMs", 0)
+            if wasted_ms > 0:
+                opps.append({"Opportunity": title, "Estimated Savings": f"{wasted_ms} ms", "Description": description})
+                
+    return {"scores": scores, "vitals": {"FCP": fcp, "LCP": lcp, "CLS": cls, "TBT": tbt, "Speed Index": speed_index}, "opportunities": opps}
+
+def get_badge_html(score):
+    if score >= 90: return f'<span class="badge good">{score} (Good)</span>'
+    elif score >= 50: return f'<span class="badge needs-improvement">{score} (Needs Imp.)</span>'
+    else: return f'<span class="badge poor">{score} (Poor)</span>'
+
+# --- RENDER COMPARISON CHART (Mobile Friendly) ---
+def render_comparison_chart(my_scores, comp_scores):
+    categories = list(my_scores.keys())
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=list(my_scores.values()),
+        name='Your Website',
+        marker_color='#0066cc'
+    ))
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=list(comp_scores.values()),
+        name='Competitor',
+        marker_color='#ff4e42'
+    ))
+    
+    fig.update_layout(
+        barmode='group',
+        height=320,
+        margin=dict(l=20, r=20, t=30, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        dragmode=False, # Disable zooming for smooth mobile scrolling
+        xaxis=dict(fixedrange=True),
+        yaxis=dict(fixedrange=True, range=[0, 100])
+    )
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+# --- USER CONTROL INTERFACE ---
+st.sidebar.header("⚙️ Configuration")
+mode = st.sidebar.radio("Select Mode", ["Single Audit", "Competitor Comparison ⚔️"])
+strategy = st.sidebar.radio("Device Strategy", ["mobile", "desktop"], index=0)
+api_key = st.sidebar.text_input("Google API Key (Optional)", type="password")
+
+# --- EXECUTION LOGIC ---
+if mode == "Single Audit":
+    url = st.text_input("Enter Website URL:", placeholder="https://example.com")
+    if st.button("Run Audit", type="primary"):
+        if not url:
+            st.error("Please enter a valid URL.")
+        else:
+            with st.spinner("Fetching data from Google..."):
+                raw_data = fetch_psi_data(url, strategy, api_key)
+                metrics = extract_metrics(raw_data)
+                
+                if metrics is None:
+                    st.error("Could not fetch data. Check the URL or API Key.")
+                else:
+                    st.success("Audit Completed!")
+                    
+                    # Core Pillars Metrics Rows
+                    cols = st.columns(4)
+                    for i, (pillar, val) in enumerate(metrics["scores"].items()):
+                        with cols[i]:
+                            st.markdown(f"**{pillar}**")
+                            st.markdown(get_badge_html(val), unsafe_with_html=True)
+                    
+                    st.markdown("---")
+                    
+                    # Web Vitals Metrics
+                    v_cols = st.columns(5)
+                    for i, (k, v) in enumerate(metrics["vitals"].items()):
+                        with v_cols[i]:
+                            st.metric(label=k, value=v)
+                            
+                    # Opportunities
+                    if metrics["opportunities"]:
+                        st.markdown("### 🛠️ Optimization Opportunities")
+                        for op in metrics["opportunities"]:
+                            with st.expander(f"{op['Opportunity']} — {op['Estimated Savings']}"):
+                                st.write(op["Description"])
 
 else:
-    st.warning(f"Historical report file '{excel_file}' not found or empty.")
+    # COMPETITOR COMPARISON MODE
+    # CSS grid structure ensures stacked format on smaller mobile displays automatically via Streamlit columns
+    c1, c2 = st.columns(2)
+    with c1:
+        my_url = st.text_input("Your Website URL:", placeholder="https://mywebsite.com")
+    with c2:
+        comp_url = st.text_input("Competitor's Website URL:", placeholder="https://competitor.com")
+        
+    if st.button("Compare Performance ⚔️", type="primary"):
+        if not my_url or not comp_url:
+            st.error("Please enter both URLs to run the comparison.")
+        else:
+            with st.spinner("Analyzing both domains in parallel..."):
+                # Fetching both URLs
+                my_raw = fetch_psi_data(my_url, strategy, api_key)
+                comp_raw = fetch_psi_data(comp_url, strategy, api_key)
+                
+                my_metrics = extract_metrics(my_raw)
+                comp_metrics = extract_metrics(comp_raw)
+                
+                if not my_metrics or not comp_metrics:
+                    st.error("Error processing data for one or both URLs.")
+                else:
+                    st.success("Comparison Battle Complete!")
+                    
+                    # 1. Graphical Chart comparison
+                    st.markdown("### 📊 Side-by-Side Pillar Comparison")
+                    render_comparison_chart(my_metrics["scores"], comp_metrics["scores"])
+                    
+                    st.markdown("---")
+                    
+                    # 2. Detailed Breakdown Grid (Automatically stacks on mobile)
+                    col_left, col_right = st.columns(2)
+                    
+                    with col_left:
+                        st.markdown(f"#### 🏠 Your Site: `{my_url.replace('https://', '').replace('www.', '')[:20]}...`")
+                        for pillar, val in my_metrics["scores"].items():
+                            st.markdown(f"**{pillar}**: {get_badge_html(val)}", unsafe_with_html=True)
+                        st.markdown("**Core Web Vitals:**")
+                        st.json(my_metrics["vitals"])
+                        
+                    with col_right:
+                        st.markdown(f"#### 👺 Competitor: `{comp_url.replace('https://', '').replace('www.', '')[:20]}...`")
+                        for pillar, val in comp_metrics["scores"].items():
+                            st.markdown(f"**{pillar}**: {get_badge_html(val)}", unsafe_with_html=True)
+                        st.markdown("**Core Web Vitals:**")
+                        st.json(comp_metrics["vitals"])
