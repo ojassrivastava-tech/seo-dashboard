@@ -260,20 +260,20 @@ else:
                     
                     st.markdown("---")
                     
-                    # Layout grid that auto-stacks cleanly on mobile screen
+                    # Fixed loop variables below using standard unsafe_allow_html parameters
                     col_left, col_right = st.columns(2)
                     
                     with col_left:
                         st.markdown(f"#### 🏠 Your Site: `{my_url.replace('https://', '').replace('www.', '')[:22]}`")
                         for pillar, val in my_metrics["scores"].items():
-                            st.markdown(f"**{pillar}**: {get_badge_html(val)}", unsafe_with_html=True)
+                            st.markdown(f"**{pillar}**: {get_badge_html(val)}", unsafe_allow_html=True)
                         st.markdown("**Core Web Vitals:**")
                         st.write(f"⏱️ **FCP:** {my_metrics['vitals']['FCP']} | ⚡ **TTI:** {my_metrics['vitals']['TTI']} | 📉 **CLS:** {my_metrics['vitals']['CLS']}")
                         
                     with col_right:
                         st.markdown(f"#### 👺 Competitor: `{comp_url.replace('https://', '').replace('www.', '')[:22]}`")
                         for pillar, val in comp_metrics["scores"].items():
-                            st.markdown(f"**{pillar}**: {get_badge_html(val)}", unsafe_with_html=True)
+                            st.markdown(f"**{pillar}**: {get_badge_html(val)}", unsafe_allow_html=True)
                         st.markdown("**Core Web Vitals:**")
                         st.write(f"⏱️ **FCP:** {comp_metrics['vitals']['FCP']} | ⚡ **TTI:** {comp_metrics['vitals']['TTI']} | 📉 **CLS:** {comp_metrics['vitals']['CLS']}")
 
