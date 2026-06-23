@@ -1,24 +1,27 @@
 import streamlit as st
 import pandas as pd
 import os
-import re
 
-# 1. Page Configuration - Strict Mobile First Layout
+# 1. Page Config - Fast Mobile Loading
 st.set_page_config(
     page_title="SEO Dashboard", 
-    layout="centered", # Mobile ke liye 'centered' sabse best hota hai taaki content bhatke na
+    layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
-st.title("🚀 SEO & Web Performance Dashboard")
-st.write("Real-time automated website tracking matrix.")
+st.title("🚀 Fast SEO Dashboard")
 
 excel_file = "seo_speed_report.xlsx"
 
-if os.path.exists(excel_file):
-    df = pd.read_excel(excel_file)
+# ⚡ FAST LOADING FUNCTION (Cache memory use karega taaki phone lag na kare)
+@st.cache_data(ttl=60)  # 60 seconds tak data memory mein rahega, baar-baar load nahi hoga
+def load_and_clean_data(file_path):
+    if not os.path.exists(file_path):
+        return None
     
-    # Clean and convert data types
+    df = pd.read_excel(file_path)
+    
+    # Fast regex replacement & numeric conversion[cite: 1]
     for col in ['First Contentful Paint (FCP)', 'Time to Interactive (TTI)']:
         if col in df.columns:
             df[col] = df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True)
@@ -26,25 +29,25 @@ if os.path.exists(excel_file):
 
     if 'Performance Score (%)' in df.columns:
         df['Performance Score (%)'] = pd.to_numeric(df['Performance Score (%)'], errors='coerce')
+        
+    return df
 
-    # 🔍 Mobile UI Filter - Big drop-down on top
+# Data load karo ek jhatke mein
+df = load_and_clean_data(excel_file)
+
+if df is not None:
+    # 🔍 Mobile Filter
     st.markdown("### 🔍 Select Website")
     all_sites = ["All Websites"] + list(df['URL'].unique())
-    selected_site = st.selectbox("Choose a site to inspect:", all_sites, label_visibility="collapsed")
+    selected_site = st.selectbox("Choose a site:", all_sites, label_visibility="collapsed")
     
-    if selected_site != "All Websites":
-        filtered_df = df[df['URL'] == selected_site]
-    else:
-        filtered_df = df
+    filtered_df = df if selected_site == "All Websites" else df[df['URL'] == selected_site]
 
-    # 📊 Mobile Responsive Display (Cards + Table)
+    # 📊 Metrics Cards (Lag-free)
     st.markdown("### 📊 Performance Metrics")
     
-    # Agar user ne koi ek website select ki hai, toh mobile par use cards ke roop mein sundar dikhao
     if selected_site != "All Websites" and len(filtered_df) > 0:
         row = filtered_df.iloc[0]
-        
-        # Mobile-friendly large font metrics
         st.metric(label="🎯 Performance Score", value=f"{int(row['Performance Score (%)'])}%")
         
         col1, col2 = st.columns(2)
@@ -52,27 +55,18 @@ if os.path.exists(excel_file):
             st.metric(label="⏱️ FCP Speed", value=f"{row['First Contentful Paint (FCP)']} s")
         with col2:
             st.metric(label="⚡ TTI Speed", value=f"{row['Time to Interactive (TTI)']} s")
-            
     else:
-        # Agar saari websites dekhni hain, toh ek sleek table dikhao jo mobile responsive ho
+        # Sleek fast table[cite: 1]
         expected_cols = ['URL', 'Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)']
         available_cols = [col for col in expected_cols if col in df.columns]
         
         display_df = filtered_df[available_cols].copy()
-        
-        # Formatting for clear display
-        if 'First Contentful Paint (FCP)' in display_df.columns:
-            display_df['First Contentful Paint (FCP)'] = display_df['First Contentful Paint (FCP)'].apply(lambda x: f"{x} s" if pd.notnull(x) else "")
-        if 'Time to Interactive (TTI)' in display_df.columns:
-            display_df['Time to Interactive (TTI)'] = display_df['Time to Interactive (TTI)'].apply(lambda x: f"{x} s" if pd.notnull(x) else "")
-            
-        # use_container_width automatic ensures no ugly horizontal scroll on phone screens
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 Chart Section - Scaled perfectly for mobile screens
+    # 📈 Light-weight Mobile Chart
     st.markdown("### 📈 Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
-    selected_metric = st.selectbox("Select metric for graph visualization:", metrics_to_chart)
+    selected_metric = st.selectbox("Select metric:", metrics_to_chart)
     
     chart_data = filtered_df.pivot_table(index='URL', values=selected_metric, aggfunc='mean')
     st.bar_chart(chart_data, use_container_width=True)
