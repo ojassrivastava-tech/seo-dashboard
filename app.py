@@ -106,11 +106,13 @@ if st.button("⚡ Run Live Audit"):
                             legend_title=None,
                             margin=dict(l=10, r=40, t=10, b=10),
                             xaxis_title=None,
-                            yaxis_title=None
+                            yaxis_title=None,
+                            dragmode=False # LOCK 1: Zooming dragging disabled
                         )
-                        fig_live.update_xaxes(matches=None, showgrid=False)
+                        # LOCK 2: Fixed axis scale to prevent sizing changes
+                        fig_live.update_xaxes(matches=None, showgrid=False, fixedrange=True)
+                        fig_live.update_yaxes(fixedrange=True)
                         
-                        # FIX: Added config to hide zoom/camera toolbar on live graph
                         st.plotly_chart(fig_live, use_container_width=True, config={'displayModeBar': False})
                         
                     else:
@@ -174,9 +176,13 @@ if df is not None and not df.empty:
             height=300, 
             coloraxis_showscale=False, 
             xaxis_title=selected_metric,
-            yaxis_title=None
+            yaxis_title=None,
+            dragmode=False # LOCK 1: Zooming dragging disabled for historical chart
         )
-        # FIX: Added config to hide zoom/camera toolbar on historical graph too
+        # LOCK 2: Fixed axis scale for historical chart
+        fig.update_xaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True)
+        
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 else:
