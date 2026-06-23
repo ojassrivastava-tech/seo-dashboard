@@ -22,6 +22,9 @@ def load_and_clean_data(file_path):
         return None
     try:
         df = pd.read_excel(file_path)
+        # Drop rows where URL is completely empty
+        df = df.dropna(subset=['URL'])
+        
         for col in ['First Contentful Paint (FCP)', 'Time to Interactive (TTI)']:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True)
@@ -35,7 +38,7 @@ def load_and_clean_data(file_path):
 df = load_and_clean_data(excel_file)
 
 # ==========================================
-# 🛠️ LIVE CUSTOM URL SCANNER (WITH PERSONAL API KEY)
+# 🛠️ LIVE CUSTOM URL SCANNER
 # ==========================================
 st.markdown("---")
 st.markdown("### 🔍 Live Website SEO Checker")
@@ -43,7 +46,6 @@ st.write("Enter any custom URL below to test its live performance via Google Pag
 
 user_url = st.text_input("Enter Website URL (e.g., https://example.com)", placeholder="https://...")
 
-# Integrated your personal Google API Key safely here
 API_KEY = "AIzaSyCxic-4hCaYk4rNUaLD8yExJKOlyqoy1WE"
 
 if st.button("⚡ Run Live Audit"):
@@ -53,7 +55,6 @@ if st.button("⚡ Run Live Audit"):
             
         with st.spinner("Fetching live data from Google API... Please wait..."):
             try:
-                # Appended your personal key to guarantee 100% uptime
                 api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={user_url}&category=performance&key={API_KEY}"
                 response = requests.get(api_url, timeout=45)
                 
@@ -62,14 +63,11 @@ if st.button("⚡ Run Live Audit"):
                     if "lighthouseResult" in data:
                         lighthouse = data["lighthouseResult"]
                         
-                        # Extract Metrics
                         perf_score = int(lighthouse["categories"]["performance"]["score"] * 100)
                         fcp = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
                         tti = lighthouse["audits"]["interactive"]["displayValue"]
                         
-                        # Display Results in Gorgeous Mobile Cards
                         st.success(f"Analysis completed for: {user_url}")
-                        
                         st.metric(label="🎯 Live Performance Score", value=f"{perf_score}%")
                         c1, c2 = st.columns(2)
                         with c1:
@@ -93,8 +91,8 @@ if st.button("⚡ Run Live Audit"):
 st.markdown("---")
 st.markdown("### 🗃️ Monitored Sites Matrix (Historical Report)")
 
-if df is not None:
-    all_sites = ["All Websites"] + list(df['URL'].unique())
+if df is not None and not df.empty:
+    all_sites = ["All Websites"] + list(df['URL'].dropna().unique())
     selected_site = st.selectbox("Choose a pre-saved site to inspect:", all_sites)
     
     filtered_df = df if selected_site == "All Websites" else df[df['URL'] == selected_site]
@@ -113,23 +111,35 @@ if df is not None:
         display_df = filtered_df[available_cols].copy()
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 Premium Interactive Graph via Plotly
+    # 📈 FIX: Safe & Bulletproof Plotly Graph
     st.markdown("### 📈 Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
     selected_metric = st.selectbox("Select metric for graph:", metrics_to_chart)
     
-    chart_data = filtered_df.pivot_table(index='URL', values=selected_metric, aggfunc='mean').reset_index()
+    # Simple grouping that never fails
+    chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean()
     
-    fig = px.bar(
-        chart_data, 
-        x='URL', 
-        y=selected_metric, 
-        color=selected_metric,
-        color_continuous_scale=px.colors.sequential.Viridis,
-        template="plotly_dark"
-    )
-    fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), height=350)
-    st.plotly_chart(fig, use_container_width=True)
+    # Cleaning empty data points before plotting
+    chart_data = chart_data.dropna()
+    
+    if not chart_data.empty:
+        fig = px.bar(
+            chart_data, 
+            x='URL', 
+            y=selected_metric, 
+            color=selected_metric,
+            color_continuous_scale=px.colors.sequential.Plotly3, # Premium neon tone colors
+            template="plotly_dark"
+        )
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=10, b=10), 
+            height=320,
+            xaxis_title=None,
+            yaxis_title=selected_metric
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Not enough numeric data available to plot a graph for the selected option.")
 
 else:
-    st.warning(f"Data file '{excel_file}' not found.")
+    st.warning(f"Data file '{excel_file}' not found or empty.")
