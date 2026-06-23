@@ -109,7 +109,9 @@ if st.button("⚡ Run Live Audit"):
                             yaxis_title=None
                         )
                         fig_live.update_xaxes(matches=None, showgrid=False)
-                        st.plotly_chart(fig_live, use_container_width=True)
+                        
+                        # FIX: Added config to hide zoom/camera toolbar on live graph
+                        st.plotly_chart(fig_live, use_container_width=True, config={'displayModeBar': False})
                         
                     else:
                         st.error("Lighthouse data not found in response. Try another URL.")
@@ -148,7 +150,7 @@ if df is not None and not df.empty:
         display_df = filtered_df[available_cols].copy()
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 FIX FOR HISTORICAL GRAPH: Horizontal Mobile Optimized Layout
+    # 📈 Historical Metric Comparison Graph
     st.markdown("### 📈 Historical Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
     selected_metric = st.selectbox("Select metric for historical graph:", metrics_to_chart)
@@ -156,7 +158,6 @@ if df is not None and not df.empty:
     chart_data = filtered_df.groupby('URL', as_index=False)[selected_metric].mean().dropna()
     
     if not chart_data.empty:
-        # Changed orientation to 'h' (Horizontal) for proper mobile formatting
         fig = px.bar(
             chart_data, 
             x=selected_metric, 
@@ -167,16 +168,16 @@ if df is not None and not df.empty:
             color_continuous_scale=px.colors.sequential.Viridis,
             template="plotly_dark"
         )
-        # Formatting for mobile: removed side legend to give graph maximum width
         fig.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
         fig.update_layout(
             margin=dict(l=10, r=40, t=10, b=10), 
             height=300, 
-            coloraxis_showscale=False, # Side color legend bar ko chupa diya space bachane ke liye
+            coloraxis_showscale=False, 
             xaxis_title=selected_metric,
             yaxis_title=None
         )
-        st.plotly_chart(fig, use_container_width=True)
+        # FIX: Added config to hide zoom/camera toolbar on historical graph too
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 else:
     st.warning(f"Data file '{excel_file}' not found or empty.")
