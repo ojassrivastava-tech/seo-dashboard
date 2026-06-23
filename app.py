@@ -7,16 +7,17 @@ from datetime import datetime
 
 # 1. Page Configuration - Strict Mobile Responsive Layout
 st.set_page_config(
-    page_title="SEO Dashboard", 
+    page_title="SEO & Web Audit Portal", 
     layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
-st.title("🚀 SEO & Web Performance Dashboard")
+st.title("🚀 Google PageSpeed Insights Audit Portal")
+st.caption("Enterprise Web Optimization Engine - Ditto Google Pro Specs")
 
 excel_file = "seo_speed_report.xlsx"
 
-# ⚡ FAST LOADING FUNCTION
+# ⚡ FAST LOADING FUNCTION FOR HISTORICAL DATA
 @st.cache_data(ttl=60)
 def load_and_clean_data(file_path):
     if not os.path.exists(file_path):
@@ -36,118 +37,174 @@ def load_and_clean_data(file_path):
 
 df = load_and_clean_data(excel_file)
 
-# Helper function to convert live data to downloadable CSV format
-def convert_df(url, score, fcp, tti):
+# Helper function for Traffic Light Color Coding (PageSpeed Rules)
+def get_status_indicator(score):
+    if score >= 90:
+        return "🟢 Good", "green"
+    elif score >= 50:
+        return "🟠 Needs Improvement", "orange"
+    else:
+        return "🔴 Poor", "red"
+
+# Helper function to convert dynamic multi-metric data to downloadable CSV
+def convert_advanced_df(url, strategy, perf, seo, access, best_prac, fcp, tti, cls):
     report_data = pd.DataFrame([{
-        'Audit Date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'URL': url,
-        'Performance Score (%)': f"{score}%",
+        'Audit Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Target URL': url,
+        'Device Strategy': strategy.upper(),
+        'Performance Score': f"{perf}%",
+        'SEO Score': f"{seo}%",
+        'Accessibility Score': f"{access}%",
+        'Best Practices Score': f"{best_prac}%",
         'First Contentful Paint (FCP)': fcp,
-        'Time to Interactive (TTI)': tti
+        'Time to Interactive (TTI)': tti,
+        'Cumulative Layout Shift (CLS)': cls
     }])
     return report_data.to_csv(index=False).encode('utf-8')
 
 # ==========================================
-# 🛠️ LIVE CUSTOM URL SCANNER
+# 🔍 GOOGLE ENTERPRISE LIVE URL AUDIT 
 # ==========================================
 st.markdown("---")
-st.markdown("### 🔍 Live Website SEO Checker")
-st.write("Enter any custom URL below to test its live performance via Google PageSpeed Insights:")
+st.markdown("### 🌐 Real-Time Full Website Audit")
+st.write("Enter any URL below to perform a standard Google Lighthouse audit suite:")
 
-user_url = st.text_input("Enter Website URL (e.g., https://example.com)", placeholder="https://...")
+user_url = st.text_input("Enter Website URL", placeholder="https://example.com")
 
+# 📱/💻 GOOGLE DITTO UPGRADE 1: Mobile vs Desktop Toggle Switch
+strategy = st.radio("Select Target Device Environment:", ["Mobile", "Desktop"], horizontal=True)
+
+# Dedicated Personal Google API Key
 API_KEY = "AIzaSyCxic-4hCaYk4rNUaLD8yExJKOlyqoy1WE"
 
-if st.button("⚡ Run Live Audit"):
+if st.button("⚡ Run Full Core Audit"):
     if user_url:
         if not user_url.startswith("http://") and not user_url.startswith("https://"):
             user_url = "https://" + user_url
             
-        with st.spinner("Fetching live data from Google API... Please wait..."):
+        with st.spinner(f"Connecting to Google Servers... Running full {strategy} analysis..."):
             try:
-                api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={user_url}&category=performance&key={API_KEY}"
-                response = requests.get(api_url, timeout=45)
+                # Dynamic strategy injection (mobile/desktop) inside official Google API request
+                api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={user_url}&category=performance&category=seo&category=accessibility&category=best-practices&strategy={strategy.lower()}&key={API_KEY}"
+                response = requests.get(api_url, timeout=60)
                 
                 if response.status_code == 200:
                     data = response.json()
                     if "lighthouseResult" in data:
                         lighthouse = data["lighthouseResult"]
+                        cats = lighthouse["categories"]
+                        audits = lighthouse["audits"]
                         
-                        perf_score = int(lighthouse["categories"]["performance"]["score"] * 100)
-                        fcp_val = float(lighthouse["audits"]["first-contentful-paint"]["numericValue"]) / 1000.0
-                        tti_val = float(lighthouse["audits"]["interactive"]["numericValue"]) / 1000.0
+                        # Extracting Google Core Pillars Scores
+                        perf_score = int(cats["performance"]["score"] * 100)
+                        seo_score = int(cats["seo"]["score"] * 100)
+                        access_score = int(cats["accessibility"]["score"] * 100)
+                        best_prac_score = int(cats["best-practices"]["score"] * 100)
                         
-                        fcp_display = lighthouse["audits"]["first-contentful-paint"]["displayValue"]
-                        tti_display = lighthouse["audits"]["interactive"]["displayValue"]
+                        # Extracting Speed Performance Metrics
+                        fcp_disp = audits["first-contentful-paint"]["displayValue"]
+                        tti_disp = audits["interactive"]["displayValue"]
+                        cls_val = float(audits["cumulative-layout-shift"]["numericValue"])
                         
-                        st.success(f"Analysis completed for: {user_url}")
-                        st.metric(label="🎯 Live Performance Score", value=f"{perf_score}%")
+                        st.success(f"Full {strategy} Audit Completed Successfully!")
                         
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            st.metric(label="⏱️ Live FCP", value=f"{fcp_display}")
-                        with c2:
-                            st.metric(label="⚡ Live TTI", value=f"{tti_display}")
+                        # 📊 GOOGLE PAGESPEED DISPLAY (With Status Badges)
+                        st.markdown(f"#### 🎯 Core Optimization Scores ({strategy})")
                         
-                        # ✨ NECESSARY FEATURE: Download Button For Mobile/Desktop Client Report
-                        csv_data = convert_df(user_url, perf_score, fcp_display, tti_display)
+                        p_label, p_color = get_status_indicator(perf_score)
+                        s_label, s_color = get_status_indicator(seo_score)
+                        a_label, a_color = get_status_indicator(access_score)
+                        b_label, b_color = get_status_indicator(best_prac_score)
+                        
+                        m1, m2 = st.columns(2)
+                        with m1:
+                            st.metric(label="📈 Performance Score", value=f"{perf_score}%", delta=p_label, delta_color="normal")
+                            st.metric(label="Accessibility Score", value=f"{access_score}%", delta=a_label, delta_color="normal")
+                        with m2:
+                            st.metric(label="🔍 SEO Score", value=f"{seo_score}%", delta=s_label, delta_color="normal")
+                            st.metric(label="🛡️ Best Practices Score", value=f"{best_prac_score}%", delta=b_label, delta_color="normal")
+                            
+                        # ⏱️ Speed Pillars
+                        st.markdown("#### ⏱️ User Experience & Core Web Vitals")
+                        s1, s2, s3 = st.columns(3)
+                        with s1:
+                            st.metric(label="⏱️ FCP", value=fcp_disp)
+                        with s2:
+                            st.metric(label="⚡ TTI", value=tti_disp)
+                        with s3:
+                            st.metric(label="📉 CLS", value=f"{cls_val:.2f}")
+
+                        # 📥 Report Download Button (CSV Format)
+                        csv_data = convert_advanced_df(user_url, strategy, perf_score, seo_score, access_score, best_prac_score, fcp_disp, tti_disp, cls_val)
                         st.download_button(
-                            label="📥 Download Audit Report (CSV)",
+                            label="📥 Download Full Executive Report (CSV)",
                             data=csv_data,
-                            file_name=f"seo_report_{user_url.replace('https://', '').replace('/', '_')}.csv",
+                            file_name=f"pagespeed_{strategy.lower()}_audit_{user_url.replace('https://', '').replace('/', '_')}.csv",
                             mime='text/csv',
-                            use_container_width=True # Ensures full width comfy finger touch on mobile
+                            use_container_width=True
                         )
                         
-                        st.markdown("#### 📊 Live Metric Analysis Chart")
-                        
-                        live_data = pd.DataFrame({
-                            'Metric': ['Score (%)', 'FCP (s)', 'TTI (s)'],
-                            'Value': [perf_score, fcp_val, tti_val],
-                            'Type': ['Score (Higher is Better)', 'Speed (Lower is Better)', 'Speed (Lower is Better)']
+                        # 📈 DYNAMIC HORIZONTAL GRAPH BREAKDOWN (MOBILE STABLE)
+                        st.markdown("#### 📊 Metric Analysis Chart")
+                        chart_df = pd.DataFrame({
+                            'Metric Category': ['Performance', 'SEO', 'Accessibility', 'Best Practices'],
+                            'Score (%)': [perf_score, seo_score, access_score, best_prac_score]
                         })
                         
                         fig_live = px.bar(
-                            live_data,
-                            x='Value',
-                            y='Metric',
-                            color='Type',
-                            text='Value',
+                            chart_df,
+                            x='Score (%)',
+                            y='Metric Category',
+                            color='Score (%)',
+                            text='Score (%)',
                             orientation='h',
                             template='plotly_dark',
-                            color_discrete_map={
-                                'Score (Higher is Better)': '#10B981',
-                                'Speed (Lower is Better)': '#3B82F6'
-                            }
+                            color_continuous_scale=px.colors.sequential.Plotly3
                         )
-                        
-                        fig_live.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
+                        fig_live.update_traces(texttemplate=' %{text}%', textposition='outside')
                         fig_live.update_layout(
-                            height=220, 
-                            showlegend=False, 
-                            margin=dict(l=70, r=40, t=10, b=10), 
-                            xaxis_title=None,
-                            yaxis_title=None,
-                            dragmode=False
+                            height=240, 
+                            coloraxis_showscale=False,
+                            margin=dict(l=100, r=40, t=10, b=10),
+                            xaxis_title=None, yaxis_title=None, dragmode=False
                         )
-                        fig_live.update_xaxes(matches=None, showgrid=False, fixedrange=True)
-                        fig_live.update_yaxes(fixedrange=True, tickfont=dict(size=12))
-                        
+                        fig_live.update_xaxes(fixedrange=True, range=[0, 115], showgrid=False)
+                        fig_live.update_yaxes(fixedrange=True)
                         st.plotly_chart(fig_live, use_container_width=True, config={'displayModeBar': False})
                         
+                        # 🛠️ GOOGLE DITTO UPGRADE 2: Opportunities & Diagnostics (Real Engine Suggestions)
+                        st.markdown("---")
+                        st.markdown("### 🛠️ Optimization Opportunities & Diagnostics")
+                        st.write("Fix these technical issues to instantly uplift this score:")
+                        
+                        opp_count = 0
+                        for audit_name, audit_data in audits.items():
+                            # Filter audits that have actionable savings guidelines from Google
+                            if 'details' in audit_data and audit_data['details'].get('type') == 'opportunity':
+                                title = audit_data.get('title')
+                                description = audit_data.get('description', '')
+                                overall_savings = audit_data['details'].get('overallSavingsMs', 0)
+                                
+                                if overall_savings > 0:
+                                    opp_count += 1
+                                    savings_sec = overall_savings / 1000.0
+                                    with st.expander(f"⚠️ {title} (Potential Savings: {savings_sec:.2f}s)"):
+                                        st.write(description)
+                        
+                        if opp_count == 0:
+                            st.success("🎉 Excellent! Google found no major optimization layout opportunities for this strategy.")
+                        
                     else:
-                        st.error("Lighthouse data not found in response. Try another URL.")
-                elif response.status_code == 429:
-                    st.error("🚦 Quota or rate limit hit. Please wait a moment and try again.")
+                        st.error("Google Lighthouse structure parsing failed. Please try again.")
                 else:
-                    st.error(f"Google API Error. (Status Code: {response.status_code})")
+                    st.error(f"Google Engine API Error. (Status Code: {response.status_code})")
             except Exception as e:
-                st.error("Connection timeout. Google API is taking too long or URL is invalid.")
+                st.error("Audit Timeout. Google servers took too long to analyze this website.")
     else:
-        st.warning("Please enter a valid URL first!")
+        st.warning("Please enter a valid website URL first!")
 
 # ==========================================
-# 📊 PRE-SAVED DATA SECTION (Historical Report)
+# 📊 PRE-SAVED HISTORICAL REPORTS SECTION
 # ==========================================
 st.markdown("---")
 st.markdown("### 🗃️ Monitored Sites Matrix (Historical Report)")
@@ -172,7 +229,7 @@ if df is not None and not df.empty:
         display_df = filtered_df[available_cols].copy()
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    # 📈 Historical Metric Comparison Graph
+    # Historical Graph
     st.markdown("### 📈 Historical Metric Comparison Graph")
     metrics_to_chart = [col for col in ['Performance Score (%)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)'] if col in df.columns]
     selected_metric = st.selectbox("Select metric for historical graph:", metrics_to_chart)
@@ -181,7 +238,6 @@ if df is not None and not df.empty:
     
     if not chart_data.empty:
         chart_data['Clean_URL'] = chart_data['URL'].str.replace('https://www.', '').str.replace('https://', '').str.replace('http://', '')
-        
         fig = px.bar(
             chart_data, 
             x=selected_metric, 
@@ -195,11 +251,8 @@ if df is not None and not df.empty:
         fig.update_traces(texttemplate=' %{text:.1f}', textposition='outside')
         fig.update_layout(
             margin=dict(l=110, r=40, t=10, b=10), 
-            height=280, 
-            coloraxis_showscale=False, 
-            xaxis_title=selected_metric,
-            yaxis_title=None,
-            dragmode=False
+            height=280, coloraxis_showscale=False, 
+            xaxis_title=selected_metric, yaxis_title=None, dragmode=False
         )
         fig.update_xaxes(fixedrange=True)
         fig.update_yaxes(fixedrange=True, tickfont=dict(size=11))
@@ -207,4 +260,4 @@ if df is not None and not df.empty:
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 else:
-    st.warning(f"Data file '{excel_file}' not found or empty.")
+    st.warning(f"Historical report file '{excel_file}' not found or empty.")
